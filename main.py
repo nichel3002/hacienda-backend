@@ -3,27 +3,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import List
-from jose import JWTError, jwt
+from jose import jwt, JWTError
 
 app = FastAPI()
 
-# CORS - para que Angular pueda acceder al backend
+# Configurar CORS para permitir peticiones desde tu frontend Angular
 origins = [
-    "https://hacienda-crud.vercel.app",  # Aquí solo permites tu frontend
+    "https://hacienda-crud.vercel.app"  # Cambia a la URL donde está tu frontend
 ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins,  # aquí el frontend autorizado
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Usuarios fijos (hardcodeados)
+# Usuarios hardcodeados para demo
 fake_users_db = {
-    "admin": {"username": "AngelMora", "password": "0702173204", "role": "admin"},
-    "user1": {"username": "BillyMora", "password": "BillyMora", "role": "user"},
-    "user2": {"username": "ElvisMora", "password": "ElvisMora", "role": "user"},
+    "admin": {"username": "admin", "password": "admin123", "role": "admin"},
+    "user": {"username": "user", "password": "user123", "role": "user"},
 }
 
 SECRET_KEY = "secretkey123"
@@ -42,7 +42,7 @@ class User(BaseModel):
 def authenticate_user(username: str, password: str):
     user = fake_users_db.get(username)
     if not user or user["password"] != password:
-        return False
+        return None
     return user
 
 def create_token(data: dict):
@@ -71,17 +71,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     role = payload.get("role")
     return User(username=username, role=role)
 
-transacciones = []
-contador_id = 1
-
+# Modelo de transacción
 class Transaccion(BaseModel):
-    id: int | None = None
+    id: int = None
     fecha: str
     tipo: str  # ingreso o gasto
     descripcion: str
     categoria: str
     monto: float
-    owner: str
+    owner: str = None
+
+# Almacenamos transacciones en memoria (lista)
+transacciones = []
+contador_id = 1
 
 @app.get("/api/transacciones", response_model=List[Transaccion])
 def get_transacciones(current_user: User = Depends(get_current_user)):
